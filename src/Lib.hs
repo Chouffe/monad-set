@@ -2,8 +2,10 @@
 
 module Lib where
 
+import Control.Monad
 import qualified Data.Set.Monad as SM
 import qualified Data.Set as S
+import           Data.Function            (on)
 
 -- Build an intermediate DataStructure to create the setMonad
 data SetI a where
@@ -33,14 +35,21 @@ instance Monad SetI where
   return = Return
   (>>=) = Bind
 
-s1 :: SM.Set Int
-s1 = do
-  a <- SM.fromList [1..10]
-  b <- SM.fromList [0..20]
-  return $ a + b
+instance Ord a => Monoid (SetI a) where
+  mempty = Prim S.empty
+  mappend s1 s2 = Prim $ runSetI s1 `mappend` runSetI s2
 
-si1 :: SetI Int
-si1 = do
-  a <- Prim $ S.fromList [1..10]
-  b <- Prim $ S.fromList [1..20]
-  return (a + b)
+liftSetI2 :: Ord a => (S.Set a -> S.Set a -> S.Set a) -> SetI a -> SetI a -> SetI a
+liftSetI2 f s1 s2 = Prim $ f (runSetI s1) (runSetI s2)
+
+union :: Ord a => SetI a -> SetI a -> SetI a
+union = liftSetI2 S.union
+
+empty :: Ord a => SetI a
+empty = Prim $ S.empty
+
+intersection :: Ord a => SetI a -> SetI a -> SetI a
+intersection = liftSetI2 S.intersection
+
+member :: Ord a => a -> SetI a -> Bool
+member x s = S.member x $ runSetI s
